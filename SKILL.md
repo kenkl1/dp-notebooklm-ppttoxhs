@@ -11,23 +11,44 @@ description: PPT转小红书笔记自动化工作流：粘贴参考PPT截图 →
 
 ```
 E:\AI教师PPT工作流\
-├── 00-对标库\对标PPT图片\          ← 输入：参考PPT截图
-├── 01-notebooklm原文件\notebooklm生成pdf\  ← 提示词 + 原始PDF
-├── 02-去水印后pdf\                 ← 无水印PDF
-├── 03-逐页ppt图片\                 ← 每页图片
-└── 04-排版后图片\                  ← 最终输出
+├── 01-ppt提示词\
+│   ├── 未使用/   ← Step1 生成提示词
+│   └── 已完成/   ← Step2 取用后
+├── 02-notebooklm生成pdf\
+│   ├── 未使用/   ← Step2 生成PDF
+│   └── 已完成/   ← Step3 取用后
+├── 03-去除水印后pdf\
+│   ├── 未使用/   ← Step3 原始PDF来源
+│   └── 已完成/   ← Step3 去水印后 → Step4 取用
+├── 04-逐页ppt图片\
+│   ├── 未使用/   ← Step4 输入来源
+│   └── 已完成/   ← Step4 转图后 → Step5 取用
+├── 05-小红书排版图片\
+│   ├── 未使用/   ← Step5 输入来源
+│   └── 已完成/   ← Step5 排版后 → Step6 取用
+└── 06-小红书笔记文案\
+    └── 已完成/   ← Step6 最终输出
 ```
 
 ## 工作流程（6步）
 
-| 步骤 | 操作 | 执行者 |
-|------|------|--------|
-| 1 | 看图 → 生成PPT提示词 | AI（我）直接执行 |
-| 2 | NotebookLM 生成 PPT/PDF | AI 调用 notebooklm-py |
-| 3 | 去除水印 | AI 调用去水印脚本 |
-| 4 | PDF 转逐页图片 | AI 调用 PDF 转图脚本 |
-| 5 | 小红书排版 | AI 调用排版脚本 |
-| 6 | 生成小红书标题文案 | AI 直接生成 |
+```
+用户发截图
+    ↓
+Step1 生成PPT提示词 → 保存到【01-ppt提示词\未使用】
+    ↓
+Step2 NotebookLM → 取用【01-ppt提示词\未使用】→ PDF保存到【02-notebooklm生成pdf\未使用】
+                 → 01-ppt提示词\未使用 的文件 → 移动到【01-ppt提示词\已完成】
+    ↓
+Step3 去除水印 → 取用【02-notebooklm生成pdf\未使用】→ 去水印保存到【03-去除水印后pdf\已完成】
+              → 02-notebooklm生成pdf\未使用 的文件 → 移动到【02-notebooklm生成pdf\已完成】
+    ↓
+Step4 PDF转图片 → 取用【03-去除水印后pdf\已完成】→ 图片保存到【04-逐页ppt图片\已完成】
+    ↓
+Step5 小红书排版 → 取用【04-逐页ppt图片\已完成】→ 排版图保存到【05-小红书排版图片\已完成】
+    ↓
+Step6 生成文案 → 取用【05-小红书排版图片\已完成】→ 文案保存到【06-小红书笔记文案\已完成】
+```
 
 ## 触发方式
 
@@ -69,20 +90,22 @@ E:\AI教师PPT工作流\
 
 ```
 PPT小红书笔记 — 进度
-[████████░░░░░░░░░░░░░░░] 25%  Step 2 进行中
-├── Step 1 生成提示词  ✓ 完成
-├── Step 2 NotebookLM  ▸ 进行中（生成 Slide Deck...）
-├── Step 3 去除水印    ○ 待执行
-├── Step 4 PDF转图片    ○ 待执行
-├── Step 5 小红书排版  ○ 待执行
-└── Step 6 生成文案    ○ 待执行
+[████████░░░░░░░░░░░░░░░░░░░] 33%  Step 2 进行中
+├── Step 1 生成提示词    ✓ 完成
+├── Step 2 NotebookLM   ▸ 进行中（生成 Slide Deck...）
+├── Step 3 去除水印      ○ 待执行
+├── Step 4 PDF转图片     ○ 待执行
+├── Step 5 小红书排版    ○ 待执行
+└── Step 6 生成文案      ○ 待执行
 ```
 
 - 每完成一个子操作，立即输出进度更新（百分比、当前操作、文件名/数量/路径等细节）
 - 子操作内也分阶段显示（如 Step 2：创建notebook → 添加源 → 生成中 → 下载中）
 - 全部完成后汇总输出所有文件路径
 
-### Step 1：看图生成PPT提示词
+---
+
+## Step 1：看图生成PPT提示词
 
 **交互**：用户选 Step 1 后，依次收集以下信息：
 
@@ -99,49 +122,72 @@ PPT小红书笔记 — 进度
 1. 调用 `/dp-ppt-style-gen` skill 传入图片路径，获取设计规范（不输出中间分析过程）
 2. 收集用户输入（主题、页数、补充要求）
 3. 读取 `references/ppt-generate-prompt.md`，结合设计规范 + 用户需求生成逐页提示词
-4. 保存为 Markdown：
-   - **路径**：`E:\AI教师PPT工作流\01-notebooklm原文件\ppt提示词\{YYYYMMDD_HHMMSS}_{主题}.md`
-   - 文件头含主题、时间戳、页数结构
-   - 逐页提示词用 `---第X页---` 分隔
+4. **保存为 Markdown 到 `01-ppt提示词\未使用`**：
+   - **路径**：`E:\AI教师PPT工作流\01-ppt提示词\未使用\{YYYYMMDD_HHMMSS}_{主题}.md`
+5. 告知用户保存路径，询问是否进入 Step 2
 
-**输出示例**：`...\ppt提示词\20260501_171118_二十四节气.md`
+**进度**：生成提示词 → **保存到 `01未使用`** → 告知用户 → 可进入 Step 2
 
-> 直接输出最终提示词，不输出分析过程。
+---
 
-### Step 2：NotebookLM 生成 PPT/PDF
+## Step 2：NotebookLM 生成 PPT/PDF
+
+**取用** `01-ppt提示词\未使用` 中的提示词文件。
 
 ```bash
+# 1. 创建 notebook
 notebooklm create "PPT：[主题]" --json
 # 解析输出获取 notebook_id → nb_id
 
-# 提示词文件路径格式：E:\AI教师PPT工作流\01-notebooklm原文件\ppt提示词\{时间戳}_{主题}.md
-notebooklm source add "E:\AI教师PPT工作流\01-notebooklm原文件\ppt提示词\{时间戳}_{主题}.md" -n <nb_id> --json
+# 2. 添加提示词（从 01未使用 取用）
+notebooklm source add "E:\AI教师PPT工作流\01-ppt提示词\未使用\{时间戳}_{主题}.md" -n <nb_id> --json
 # 解析输出获取 source_id
 
+# 3. 等待源上传完成
 notebooklm source wait <source_id> -n <nb_id> --timeout 120
 
+# 4. 生成 slide deck
 notebooklm generate slide-deck --format detailed -n <nb_id> --json
-# 解析输出获取 artifact_id（task_id）
+# 解析输出获取 artifact_id
 
+# 5. 等待生成完成
 notebooklm artifact wait <artifact_id> -n <nb_id> --timeout 900
 
-notebooklm download slide-deck "E:\AI教师PPT工作流\01-notebooklm原文件\notebooklm生成pdf\{主题}_{时间戳}.pdf" -n <nb_id>
+# 6. 下载 PDF → 保存到 02未使用
+notebooklm download slide-deck "E:\AI教师PPT工作流\02-notebooklm生成pdf\未使用\{主题}_{时间戳}.pdf" -n <nb_id>
 ```
 
-**输出**：`E:\AI教师PPT工作流\01-notebooklm原文件\notebooklm生成pdf\{主题}_{时间戳}.pdf`
-> 例：`...\notebooklm生成pdf\二十四节气_20260501_171118.pdf`
+**完成后**：
+- PDF 在 `02-notebooklm生成pdf\未使用`
+- 提示词从 `01-ppt提示词\未使用` **移动到** `01-ppt提示词\已完成`
+- 告知用户可进入 Step 3
 
-### Step 3：去除水印
+**进度**：创建notebook → 添加源 → 生成中 → 下载中 → 提示词归位 → 告知用户
+
+---
+
+## Step 3：去除水印
+
+**取用** `02-notebooklm生成pdf\未使用` 中的原始 PDF，执行去水印。
 
 ```bash
 python ~/.claude/skills/dp-pdf-notebooklm-watermarkremover/scripts/download.py \
-  "E:\AI教师PPT工作流\01-notebooklm原文件\notebooklm生成pdf\slides.pdf" \
-  --output "E:\AI教师PPT工作流\02-去水印后pdf\{主题}_{时间戳}_nowatermark.pdf"
+  "E:\AI教师PPT工作流\02-notebooklm生成pdf\未使用\{主题}_{时间戳}.pdf" \
+  --output "E:\AI教师PPT工作流\03-去除水印后pdf\已完成\{主题}_{时间戳}_nowatermark.pdf"
 ```
 
-**输出**：`E:\AI教师PPT工作流\02-去水印后pdf\{主题}_{时间戳}_nowatermark.pdf`
+**完成后**：
+- 去水印 PDF 保存到 `03-去除水印后pdf\已完成`
+- 原始 PDF 从 `02-notebooklm生成pdf\未使用` **移动到** `02-notebooklm生成pdf\已完成`
+- 告知用户可进入 Step 4
 
-### Step 4：PDF 转逐页图片
+**进度**：取用 02未使用 → 去水印 → 保存到 03已完成 → 移动原始PDF到 02已完成
+
+---
+
+## Step 4：PDF 转逐页图片
+
+**取用** `03-去除水印后pdf\已完成` 中的去水印 PDF。
 
 ```python
 import sys, importlib.util
@@ -152,31 +198,43 @@ spec = importlib.util.spec_from_file_location(
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 mod.convert_pdf_to_images(
-    pdf_path=r"E:\AI教师PPT工作流\02-去水印后pdf\{主题}_nowatermark.pdf",
-    output_dir=r"E:\AI教师PPT工作流\03-逐页ppt图片\{主题}_{时间戳}",
+    pdf_path=r"E:\AI教师PPT工作流\03-去除水印后pdf\已完成\{主题}_{时间戳}_nowatermark.pdf",
+    output_dir=r"E:\AI教师PPT工作流\04-逐页ppt图片\已完成\{主题}_{时间戳}",
     dpi=150, format="jpg", max_size_mb=5,
 )
 ```
 
-**输出**：`E:\AI教师PPT工作流\03-逐页ppt图片\{主题}_{时间戳}\page_001.jpg` ...
+**输出**：`04-逐页ppt图片\已完成\{主题}_{时间戳}\page_001.jpg` ...
 
-### Step 5：小红书排版
+**进度**：读取 PDF → 逐页转换中（X/Y）→ 全部完成
+
+---
+
+## Step 5：小红书排版
+
+**取用** `04-逐页ppt图片\已完成` 中的逐页图片。
 
 **自动生成全部3种布局，用尽所有图片**：
-- `layout1`：左侧9缩略图 + 右侧3大图（需要12张图）
-- `layout2`：三层瀑布流，用尽所有图片
-- `layout3`：上下交替排列，用尽所有图片
+- `layout1`：左侧9缩略图 + 右侧3大图
+- `layout2`：三层瀑布流
+- `layout3`：上下交替排列
 
 ```bash
 python ~/.claude/skills/dp-xhsppt-output_layout/ppt_layout.py \
-  "E:\AI教师PPT工作流\03-逐页ppt图片\{主题}_{时间戳}" \
-  -o "E:\AI教师PPT工作流\04-排版后图片\{主题}_{时间戳}" \
+  "E:\AI教师PPT工作流\04-逐页ppt图片\已完成\{主题}_{时间戳}" \
+  -o "E:\AI教师PPT工作流\05-小红书排版图片\已完成\{主题}_{时间戳}" \
   -l all
 ```
 
-**输出**：多个文件，命名格式为 `layout{N}_{MM}.png`（如 `layout1_01.png`, `layout2_01.png`, `layout3_01.png` 等）
+**输出**：`05-小红书排版图片\已完成\{主题}_{时间戳}\layout{N}_{MM}.png`
 
-### Step 6：生成小红书标题和文案
+**进度**：读取图片 → 生成 layout1 → layout2 → layout3 → 全部完成
+
+---
+
+## Step 6：生成小红书标题和文案
+
+**取用** `05-小红书排版图片\已完成` 中的排版图。
 
 调用 `/dp-xhs-note` skill 生成完整的小红书文案，包括：
 - 小红书笔记标题（20字内，含emoji）
@@ -185,60 +243,35 @@ python ~/.claude/skills/dp-xhsppt-output_layout/ppt_layout.py \
 - 话题标签（5个hashtag）
 
 **输出**：
-1. 保存为 Markdown：`E:\AI教师PPT工作流\05-小红书笔记\{时间戳}_{标题}.md`
-2. 在对话里也输出一遍，方便用户直接复制
+- 保存为 Markdown：`E:\AI教师PPT工作流\06-小红书笔记文案\未发布\{时间戳}_{标题}.md`
+- 在对话里也输出一遍，方便用户直接复制
 
 > 调用方式：`Skill("dp-xhs-note")`，传入主题和时间戳信息。
 
-## 当前进度追踪
+**进度**：读取排版图 → 生成文案 → 保存到 `06未发布` → 输出
 
-进入 skill 时，先扫描各目录，自动判断当前进度：
+---
 
-**进度检查顺序**：
-1. 检查 `01-notebooklm原文件\ppt提示词\` 下最新 `.md` 文件 → 有则 Step 1 完成
-2. 检查 `01-notebooklm原文件\notebooklm生成pdf\` 下最新 `.pdf` 文件 → 有则 Step 2 完成
-3. 检查 `02-去水印后pdf\{主题}_{时间戳}_nowatermark.pdf` 是否存在 → 有则 Step 3 完成
-4. 检查 `03-逐页ppt图片\{主题}_{时间戳}\` 下图片数量 → 有则 Step 4 完成
-5. 检查 `04-排版后图片\{主题}_{时间戳}\layout1.png` 是否存在 → 有则 Step 5 完成（3张layout都会生成）
-
-**显示格式**（每次汇报进度时使用）：
-
-```
-PPT小红书笔记 — 当前进度
-[████████░░░░░░░░░░░░░░░] 25%  Step 2 进行中
-├── Step 1 生成提示词  ✓ 完成
-├── Step 2 NotebookLM  ▸ 进行中（生成 Slide Deck...）
-├── Step 3 去除水印    ○ 待执行
-├── Step 4 PDF转图片    ○ 待执行
-├── Step 5 小红书排版  ○ 待执行
-└── Step 6 生成文案    ○ 待执行
-```
-
-**执行中进度规则**：
-- 每完成一个子操作，立即输出进度更新
-- 包含：进度百分比、当前操作名称、具体细节（文件名、数量、路径等）
-- 子操作内也需分阶段显示（如 Step 2：创建notebook → 添加源 → 生成中 → 下载中）
-
-**完成后**：汇总输出所有文件路径，并在汇总中列出全部6步的完成状态，格式如下：
+## 完成后汇总格式
 
 ```
 PPT小红书笔记 — 完成！
 [████████████████████████] 100%
 
-├── Step 1 生成提示词    ✓ 完成（X页提示词）
-├── Step 2 NotebookLM   ✓ 完成（PDF: X.XMB）
-├── Step 3 去除水印      ✓ 完成（去水印后: X.XMB）
-├── Step 4 PDF转图片     ✓ 完成（X张图片，XMB）
-├── Step 5 小红书排版   ✓ 完成（X张排版图）
-└── Step 6 生成文案      ✓ 完成（完整小红书文案，已保存并输出）
+├── Step 1 生成提示词    ✓ 完成（X页 → 01未使用）
+├── Step 2 NotebookLM   ✓ 完成（PDF → 02未使用 → 01已完成）
+├── Step 3 去除水印      ✓ 完成（去水印PDF → 03已完成 → 02已完成）
+├── Step 4 PDF转图片     ✓ 完成（X张 → 04已完成）
+├── Step 5 小红书排版    ✓ 完成（X张 → 05已完成）
+└── Step 6 生成文案      ✓ 完成（文案 → 06已完成）
 
 输出文件：
-- 提示词: ...\ppt提示词\{时间戳}_{主题}.md
-- PDF: ...\notebooklm生成pdf\{主题}_{时间戳}.pdf
-- 去水印PDF: ...\02-去水印后pdf\{主题}_{时间戳}_nowatermark.pdf
-- 逐页图片: ...\03-逐页ppt图片\{主题}_{时间戳}（X张）
-- 排版图片: ...\04-排版后图片\{主题}_{时间戳}（X张）
-- 文案: ...\05-小红书笔记\{时间戳}\{标题}.md
+- 提示词: ...\01-ppt提示词\已完成\{时间戳}_{主题}.md
+- 原始PDF: ...\02-notebooklm生成pdf\已完成\{主题}_{时间戳}.pdf
+- 去水印PDF: ...\03-去除水印后pdf\已完成\{主题}_{时间戳}_nowatermark.pdf
+- 逐页图片: ...\04-逐页ppt图片\已完成\{主题}_{时间戳}（X张）
+- 排版图片: ...\05-小红书排版图片\已完成\{主题}_{时间戳}（X张）
+- 文案: ...\06-小红书笔记文案\未发布\{时间戳}_{标题}.md
 ```
 
 ## 断点续跑
