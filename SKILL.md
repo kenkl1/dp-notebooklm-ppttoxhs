@@ -179,7 +179,7 @@ python ~/.claude/skills/dp-xhsppt-output_layout/ppt_layout.py \
 ### Step 6：生成小红书标题和文案
 
 基于 PPT 主题，生成小红书风格内容：
-- **标题**：吸引眼球，含emoji，贴合平台风格
+- **标题**：吸引眼球，含emoji，**严格控制在20字以内**
 - **文案**：配合排版图使用，2-3段正文
 
 **输出**：同时做两件事
