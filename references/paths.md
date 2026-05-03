@@ -7,10 +7,12 @@
 | 变量 | 完整路径 |
 |------|---------|
 | `REF_IMAGES` | `E:\AI教师PPT工作流\00-对标库\对标PPT图片` |
+| `REF_XHS_COPY` | `E:\AI教师PPT工作流\00-对标库\对标小红书文案` |
 | `PROMPTS_DIR` | `E:\AI教师PPT工作流\01-notebooklm原文件\notebooklm生成pdf` |
 | `CLEAN_PDF_DIR` | `E:\AI教师PPT工作流\02-去水印后pdf` |
 | `PAGES_DIR` | `E:\AI教师PPT工作流\03-逐页ppt图片` |
 | `FINAL_DIR` | `E:\AI教师PPT工作流\04-排版后图片` |
+| `XHS_NOTE_DIR` | `E:\AI教师PPT工作流\05-小红书笔记` |
 
 ## 关键文件
 

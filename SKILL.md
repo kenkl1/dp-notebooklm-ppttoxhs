@@ -39,7 +39,7 @@ E:\AI教师PPT工作流\
 
 ## 交互入口
 
-启动后，先向用户介绍完整流程，询问当前所在步骤：
+**不扫描目录**，直接介绍流程并询问从第几步开始。
 
 ---
 
@@ -51,7 +51,7 @@ E:\AI教师PPT工作流\
 | 2 | NotebookLM 生成 PPT | 上传提示词 → 生成 slide deck → 下载 PDF |
 | 3 | 去除水印 | 去掉 "Made with NotebookLM" 水印 |
 | 4 | PDF 转逐页图片 | 逐页输出为 JPG，每张 ≤5MB |
-| 5 | 小红书排版 | 自动选布局（5页→layout2，其他→layout1） |
+| 5 | 小红书排版 | 自动生成 3 种布局排版图 |
 | 6 | 生成标题文案 | 自动生成小红书标题 + 正文 |
 
 **请告诉我：从第几步开始？**
@@ -63,7 +63,24 @@ E:\AI教师PPT工作流\
 
 ---
 
-## 详细步骤
+## 进度显示规则
+
+**只有开始执行时才显示进度**，入口只显示上方简洁表格。进度格式：
+
+```
+PPT小红书笔记 — 进度
+[████████░░░░░░░░░░░░░░░] 25%  Step 2 进行中
+├── Step 1 生成提示词  ✓ 完成
+├── Step 2 NotebookLM  ▸ 进行中（生成 Slide Deck...）
+├── Step 3 去除水印    ○ 待执行
+├── Step 4 PDF转图片    ○ 待执行
+├── Step 5 小红书排版  ○ 待执行
+└── Step 6 生成文案    ○ 待执行
+```
+
+- 每完成一个子操作，立即输出进度更新（百分比、当前操作、文件名/数量/路径等细节）
+- 子操作内也分阶段显示（如 Step 2：创建notebook → 添加源 → 生成中 → 下载中）
+- 全部完成后汇总输出所有文件路径
 
 ### Step 1：看图生成PPT提示词
 
@@ -130,8 +147,9 @@ spec = importlib.util.spec_from_file_location(
     "convert",
     str(Path.home() / ".claude/skills/dp-pdf-to-images/scripts/convert.py")
 )
-convert = importlib.util.load_source("convert", str(spec.loader.load_module.__file__))
-spec.loader.load_module.convert_pdf_to_images(
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+mod.convert_pdf_to_images(
     pdf_path=r"E:\AI教师PPT工作流\02-去水印后pdf\{主题}_nowatermark.pdf",
     output_dir=r"E:\AI教师PPT工作流\03-逐页ppt图片\{主题}_{时间戳}",
     dpi=150, format="jpg", max_size_mb=5,
@@ -142,17 +160,19 @@ spec.loader.load_module.convert_pdf_to_images(
 
 ### Step 5：小红书排版
 
-根据实际页数自动选择布局：
-- 5页 → `layout2`（三层瀑布流）
-- 其他 → `layout1`（左侧9缩略图 + 右侧3大图）
+**自动生成全部3种布局，用尽所有图片**：
+- `layout1`：左侧9缩略图 + 右侧3大图（需要12张图）
+- `layout2`：三层瀑布流，用尽所有图片
+- `layout3`：上下交替排列，用尽所有图片
 
 ```bash
 python ~/.claude/skills/dp-xhsppt-output_layout/ppt_layout.py \
   "E:\AI教师PPT工作流\03-逐页ppt图片\{主题}_{时间戳}" \
-  -l <auto> -o "E:\AI教师PPT工作流\04-排版后图片\{主题}_{时间戳}\layout.png"
+  -o "E:\AI教师PPT工作流\04-排版后图片\{主题}_{时间戳}" \
+  -l all
 ```
 
-**输出**：`E:\AI教师PPT工作流\04-排版后图片\{主题}_{时间戳}\layout.png`
+**输出**：多个文件，命名格式为 `layout{N}_{MM}.png`（如 `layout1_01.png`, `layout2_01.png`, `layout3_01.png` 等）
 
 ### Step 6：生成小红书标题和文案
 
@@ -171,7 +191,7 @@ python ~/.claude/skills/dp-xhsppt-output_layout/ppt_layout.py \
 2. 检查 `01-notebooklm原文件\notebooklm生成pdf\` 下最新 `.pdf` 文件 → 有则 Step 2 完成
 3. 检查 `02-去水印后pdf\{主题}_{时间戳}_nowatermark.pdf` 是否存在 → 有则 Step 3 完成
 4. 检查 `03-逐页ppt图片\{主题}_{时间戳}\` 下图片数量 → 有则 Step 4 完成
-5. 检查 `04-排版后图片\{主题}_{时间戳}\layout.png` 是否存在 → 有则 Step 5 完成
+5. 检查 `04-排版后图片\{主题}_{时间戳}\layout1.png` 是否存在 → 有则 Step 5 完成（3张layout都会生成）
 
 **显示格式**（每次汇报进度时使用）：
 
@@ -191,7 +211,26 @@ PPT小红书笔记 — 当前进度
 - 包含：进度百分比、当前操作名称、具体细节（文件名、数量、路径等）
 - 子操作内也需分阶段显示（如 Step 2：创建notebook → 添加源 → 生成中 → 下载中）
 
-**完成后**：汇总输出所有文件路径，方便用户查看。
+**完成后**：汇总输出所有文件路径，并在汇总中列出全部6步的完成状态，格式如下：
+
+```
+PPT小红书笔记 — 完成！
+[████████████████████████] 100%
+
+├── Step 1 生成提示词    ✓ 完成（X页提示词）
+├── Step 2 NotebookLM   ✓ 完成（PDF: X.XMB）
+├── Step 3 去除水印      ✓ 完成（去水印后: X.XMB）
+├── Step 4 PDF转图片     ✓ 完成（X张图片，XMB）
+├── Step 5 小红书排版   ✓ 完成（X张排版图）
+└── Step 6 生成文案      ✓ 完成（标题+正文已输出）
+
+输出文件：
+- 提示词: ...\ppt提示词\{时间戳}_{主题}.md
+- PDF: ...\notebooklm生成pdf\{主题}_{时间戳}.pdf
+- 去水印PDF: ...\02-去水印后pdf\{主题}_{时间戳}_nowatermark.pdf
+- 逐页图片: ...\03-逐页ppt图片\{主题}_{时间戳}\（X张）
+- 排版图片: ...\04-排版后图片\{主题}_{时间戳}\（X张）
+```
 
 ## 断点续跑
 
