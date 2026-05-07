@@ -130,6 +130,46 @@ PPT小红书笔记 — 进度
 
 ---
 
+## 认证失效处理（每次 Step 2 前必读）
+
+运行 `notebooklm` 命令时报 `Authentication expired or invalid` 时，**不要尝试 `notebooklm login`**（Windows 下 Playwright 路径问题容易失败），按以下步骤处理：
+
+### 1. 检查已有 cookie 文件
+
+```bash
+cat ~/.notebooklm/profiles/default/storage_state.json
+```
+
+- **文件存在且有内容** → 直接重试原命令
+- **文件为空或不存在** → 跳到步骤 2
+
+### 2. 请求用户重新提供 cookie
+
+请用户从浏览器开发者工具（F12 → Application → Cookies → notebooklm.google.com）导出完整 cookie JSON，格式为：
+
+```json
+{"cookies":[...], "origins":[]}
+```
+
+必要字段：`SID`, `HSID`, `SSID`, `APISID`, `SAPISID`, `__Secure-1PSID`, `__Secure-3PSID`
+
+### 3. 写入 cookie 并重试
+
+```bash
+mkdir -p ~/.notebooklm/profiles/default
+cat > ~/.notebooklm/profiles/default/storage_state.json << 'ENDJSON'
+{"cookies":[用户提供的完整cookie JSON], "origins":[]}
+ENDJSON
+```
+
+然后直接重试原 `notebooklm` 命令，无需设置环境变量。
+
+### 为什么不用 `notebooklm login`
+
+`notebooklm login` 依赖 Playwright + Chromium 自动打开浏览器做 OAuth。在 Windows 下常因浏览器路径问题（Chrome 安装在 `C:\Program Files\` 而非默认路径）导致 Playwright 找不到浏览器而失败。Cookie 文件方式直接读取已认证的 session，绕过浏览器自动化，100% 可靠。
+
+---
+
 ## Step 2：NotebookLM 生成 PPT/PDF
 
 **取用** `01-ppt提示词\未使用` 中的提示词文件。
@@ -156,6 +196,8 @@ notebooklm artifact wait <artifact_id> -n <nb_id> --timeout 900
 # 6. 下载 PDF → 保存到 02未使用
 notebooklm download slide-deck "E:\AI教师PPT工作流\02-notebooklm生成pdf\未使用\{主题}_{时间戳}.pdf" -n <nb_id>
 ```
+
+**认证失效时**：执行上方「认证失效处理」步骤，写入 cookie 后重试，不要尝试 `notebooklm login`
 
 **完成后**：
 - PDF 在 `02-notebooklm生成pdf\未使用`
@@ -238,7 +280,7 @@ python ~/.claude/skills/dp-xhsppt-output_layout/ppt_layout.py \
 
 调用 `/dp-xhs-note` skill 生成完整的小红书文案，包括：
 - 小红书笔记标题（20字内，含emoji）
-- 小红书商品标题（30字内，含关键词）
+- 小红书商品标题（60字内，含关键词）
 - 小红书正文文案（爆款风格，含痛点升华、金句结尾）
 - 话题标签（5个hashtag）
 
@@ -273,6 +315,36 @@ PPT小红书笔记 — 完成！
 - 排版图片: ...\05-小红书排版图片\已完成\{主题}_{时间戳}（X张）
 - 文案: ...\06-小红书笔记文案\未发布\{时间戳}_{标题}.md
 ```
+
+## 最终呈现：完整输出小红书文案
+
+**全部完成后，必须在对话中完整呈现本次生成的小红书文案**（读取 `06-小红书笔记文案\未发布\` 下最新文件，完整输出全部内容），格式必须严格遵循 `/dp-xhs-note` skill 的规范：
+
+```markdown
+# 小红书笔记标题
+
+[20字内，含 emoji]
+
+---
+
+# 小红书商品标题
+
+[30字内，含关键词]
+
+---
+
+# 小红书正文文案
+
+[爆款风格正文]
+
+---
+
+#话题
+
+[5个 hashtag]
+```
+
+文案要完整输出，不得省略任何部分。这是给用户的最终交付物。
 
 ## 断点续跑
 
